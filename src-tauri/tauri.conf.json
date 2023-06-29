@@ -54,13 +54,7 @@
         "depends": []
       },
       "externalBin": ["bin/ffmpeg"],
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
+      "icon": ["icons/icon.png", "icons/icon.ico"],
       "identifier": "com.oimsweden.videocompressor",
       "longDescription": "",
       "macOS": {
@@ -88,10 +82,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 600,
+        "height": 800,
         "resizable": true,
         "title": "One Incredible Video Compressor",
-        "width": 800
+        "width": 1200
       }
     ]
   }
