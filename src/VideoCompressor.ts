@@ -3,39 +3,35 @@ import { Command } from "@tauri-apps/api/shell";
 import { homeDir } from "@tauri-apps/api/path";
 import { listen } from "@tauri-apps/api/event";
 
+async function render() {
+  document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
+  <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;">
+    <h1>One Incredible Video Compressor</h1>
+    <div id="dropZone" style="height:200px;border:3px dashed black;display:flex;place-items:center;justify-content:center;">
+      <h2 style="color:#dbdbdb;">Drop a video here</h2>
+    </div>
+    <div class="card">
+    <p>Compressed files are placed in <a href="${await homeDir()}\Videos">${await homeDir()}\Videos</a> </p>
+    <p id="errorMsg"></p>
+      <button id="start" type="button">Start compressing</button>
+      <div id="queue" style="width:400px;height:100px;overflow:auto;"></div>
+      <div id="progress"></div>
+    </div>
+  </div>
+`;
+}
+render().then(() => new VideoCompressor());
 export interface LiveData {
   frame: number;
   fps: number;
   bitrate: number;
 }
 
-async function render(): Promise<HTMLDivElement> {
-  return new Promise(async (resolve) => {
-    const app = document.querySelector<HTMLDivElement>("#app")!;
-    app.innerHTML = `
-    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;">
-      <h1>One Incredible Video Compressor</h1>
-      <div id="dropZone" style="height:200px;border:3px dashed black;display:flex;place-items:center;justify-content:center;">
-        <h2 style="color:#dbdbdb;">Drop a video here</h2>
-      </div>
-      <div class="card">
-      <p>Compressed files are placed in <a href="${await homeDir()}\Videos">${await homeDir()}\Videos</a> </p>
-      <p id="errorMsg"></p>
-        <button id="start" type="button">Start compressing</button>
-        <div id="queue" style="width:400px;height:100px;overflow:auto;"></div>
-        <div id="progress"></div>
-      </div>
-    </div>
-  `;
-    resolve(app);
-  });
-}
-
 export default class VideoCompressor {
-  public button: HTMLButtonElement;
-  public errorMsg: HTMLParagraphElement;
-  public progress: HTMLDivElement;
-  public queueContainer: HTMLDivElement;
+  public button = document.querySelector<HTMLButtonElement>("#start")!;
+  public errorMsg = document.querySelector<HTMLParagraphElement>("#errorMsg")!;
+  public progress = document.querySelector<HTMLDivElement>("#progress")!;
+  public queueContainer = document.querySelector("#queue")!;
 
   public filePaths?: string[];
   public totalFrames?: number;
@@ -48,15 +44,12 @@ export default class VideoCompressor {
   };
   public retries = 0;
 
-  constructor(app: HTMLDivElement) {
-    this.button = app.querySelector<HTMLButtonElement>("#start")!;
-    this.errorMsg = app.querySelector<HTMLParagraphElement>("#errorMsg")!;
-    this.progress = app.querySelector<HTMLDivElement>("#progress")!;
-    this.queueContainer = app.querySelector("#queue")!;
+  constructor() {
     this.init();
   }
 
   init() {
+    console.log("init");
     this.addEventListeners();
   }
 
@@ -175,5 +168,3 @@ export default class VideoCompressor {
     this.queueContainer!.innerHTML = "";
   }
 }
-
-render().then((app) => new VideoCompressor(app));
