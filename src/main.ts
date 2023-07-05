@@ -2,11 +2,21 @@ import "./style.css";
 import { Command } from "@tauri-apps/api/shell";
 import { homeDir } from "@tauri-apps/api/path";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api";
 
 export interface LiveData {
   frame: number;
   fps: number;
   bitrate: number;
+}
+
+interface File {
+  payload: string[];
+}
+
+export interface FileData {
+  before: string;
+  after: string;
 }
 
 async function render(): Promise<HTMLDivElement> {
@@ -21,9 +31,11 @@ async function render(): Promise<HTMLDivElement> {
       <div class="card">
       <p>Compressed files are placed in <a href="${await homeDir()}\Videos">${await homeDir()}\Videos</a> </p>
       <p id="errorMsg"></p>
-        <button id="start" type="button">Start compressing</button>
-        <div id="queue" style="width:400px;height:100px;overflow:auto;"></div>
-        <div id="progress"></div>
+      <button id="start" type="button">Start compressing</button>
+      <div id="queue" style="width:400px;height:100px;overflow:auto;"></div>
+      <div id="fileStats"></div>
+      <div id="progress"></div>
+      <div id="log"></div>
       </div>
     </div>
   `;
@@ -34,8 +46,10 @@ async function render(): Promise<HTMLDivElement> {
 export default class VideoCompressor {
   public button: HTMLButtonElement;
   public errorMsg: HTMLParagraphElement;
-  public progress: HTMLDivElement;
   public queueContainer: HTMLDivElement;
+  public progress: HTMLDivElement;
+  public log: HTMLDivElement;
+  public fileStats: HTMLDivElement;
 
   public filePaths?: string[];
   public totalFrames?: number;
@@ -46,13 +60,17 @@ export default class VideoCompressor {
     fps: 0,
     bitrate: 0,
   };
+  public fileData: FileData;
   public retries = 0;
 
   constructor(app: HTMLDivElement) {
     this.button = app.querySelector<HTMLButtonElement>("#start")!;
     this.errorMsg = app.querySelector<HTMLParagraphElement>("#errorMsg")!;
     this.progress = app.querySelector<HTMLDivElement>("#progress")!;
-    this.queueContainer = app.querySelector("#queue")!;
+    this.queueContainer = app.querySelector<HTMLDivElement>("#queue")!;
+    this.log = app.querySelector<HTMLDivElement>("#log")!;
+    this.fileStats = app.querySelector<HTMLDivElement>("#fileStats")!;
+    this.fileData = { before: "", after: "" };
     this.init();
   }
 
@@ -69,8 +87,13 @@ export default class VideoCompressor {
     this.button?.addEventListener("click", this.startCompression.bind(this));
     listen("tauri://file-drop", async (event) => {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      this.filePaths = event.payload as string[];
-      this.updateQueue();
+
+      let file = event.payload as string[];
+      tauriFileStat(file[0]).then((file) => {
+        this.fileData.before = formatBytes(file.size);
+        this.filePaths = event.payload as string[];
+        this.reRender();
+      });
     });
   }
 
@@ -125,6 +148,7 @@ export default class VideoCompressor {
         };
       }
     });
+    this.log.innerHTML = JSON.stringify(this.liveData);
     return this.liveData;
   }
 
@@ -156,17 +180,22 @@ export default class VideoCompressor {
 
         const output = await command.execute();
         if (output.code === 0) {
-          this.reset(homeDirPath, fileName as string);
+          tauriFileStat(`${homeDirPath}\Videos\\${fileName}`).then((file) => {
+            this.fileData.after = formatBytes(file.size);
+            this.reset(homeDirPath, fileName as string);
+          });
         }
       });
     }
   }
 
-  updateQueue() {
+  reRender() {
     this.queueContainer!.innerHTML = JSON.stringify(this.filePaths, null, " ");
+    this.fileStats.innerHTML = "Before: " + this.fileData.before;
   }
 
   reset(homeDirPath: string, fileName: string) {
+    this.fileStats.innerHTML += " After: " + this.fileData.after;
     this.progress!.innerHTML = `Compression complete. File was put in ${homeDirPath}\Videos\\${fileName} `;
     this.filePaths = undefined;
     this.totalFrames = undefined;
@@ -177,3 +206,28 @@ export default class VideoCompressor {
 }
 
 render().then((app) => new VideoCompressor(app));
+
+export interface TauriFileStat {
+  mtime: number;
+  /* Is this a directory. */
+  isDir: boolean;
+  /* Is this a regular file. */
+  isFile: boolean;
+  /* File size in bytes. */
+  size: number;
+}
+
+export function tauriFileStat(filename: string): Promise<TauriFileStat> {
+  return invoke("filestat", { filename }).then((x) => {
+    return JSON.parse(x as string) as TauriFileStat;
+  });
+}
+
+function formatBytes(a: number, b = 2) {
+  if (!+a) return "0 Bytes";
+  const c = 0 > b ? 0 : b,
+    d = Math.floor(Math.log(a) / Math.log(1024));
+  return `${parseFloat((a / Math.pow(1024, d)).toFixed(c))} ${
+    ["Bytes", "KiB", "MiB", "GiB", "TiB"][d]
+  }`;
+}

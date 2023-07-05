@@ -2,6 +2,7 @@ import "./style.css";
 import { Command } from "@tauri-apps/api/shell";
 import { homeDir } from "@tauri-apps/api/path";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api";
 
 async function render() {
   document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
@@ -63,6 +64,7 @@ export default class VideoCompressor {
     listen("tauri://file-drop", async (event) => {
       await new Promise((resolve) => setTimeout(resolve, 100));
       this.filePaths = event.payload as string[];
+      console.log(tauriFileStat(this.filePaths![0]));
       this.updateQueue();
     });
   }
@@ -167,4 +169,21 @@ export default class VideoCompressor {
     this.fps = undefined;
     this.queueContainer!.innerHTML = "";
   }
+}
+
+export interface TauriFileStat {
+  mtime: number;
+  /* Is this a directory. */
+  isDir: boolean;
+  /* Is this a regular file. */
+  isFile: boolean;
+  /* File size in bytes. */
+  size: number;
+}
+
+export function tauriFileStat(filename: string): Promise<TauriFileStat> {
+  console.log("filestat");
+  return invoke("filestat", { filename }).then((x) => {
+    return JSON.parse(x as string) as TauriFileStat;
+  });
 }
