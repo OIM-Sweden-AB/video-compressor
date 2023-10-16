@@ -4,17 +4,13 @@ import { homeDir } from "@tauri-apps/api/path";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api";
 
-export interface LiveData {
+interface LiveData {
   frame: number;
   fps: number;
   bitrate: number;
 }
 
-interface File {
-  payload: string[];
-}
-
-export interface FileData {
+interface FileData {
   before: string;
   after: string;
 }
@@ -126,9 +122,6 @@ export default class VideoCompressor {
         } else {
         }
         this.totalFrames = d * this.fps;
-        console.log("Duration:", this.duration);
-        console.log("Frames per second:", this.fps);
-        console.log("Total frames:", this.totalFrames);
       }
     }
   }
@@ -217,10 +210,9 @@ export interface TauriFileStat {
   size: number;
 }
 
-export function tauriFileStat(filename: string): Promise<TauriFileStat> {
-  return invoke("filestat", { filename }).then((x) => {
-    return JSON.parse(x as string) as TauriFileStat;
-  });
+async function tauriFileStat(filename: string): Promise<TauriFileStat> {
+  const x = await invoke("filestat", { filename });
+  return JSON.parse(x as string) as TauriFileStat;
 }
 
 function formatBytes(a: number, b = 2) {
